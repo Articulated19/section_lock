@@ -11,34 +11,40 @@ from subprocess import Popen
 import sys
 
 pub = None
+handledCrossing = False
 
 def callback(data):
 	global pub
-	rospack = rospkg.RosPack()
-	pub.publish()
-	waitTime = 10
+	global handledCrossing
+	if not handledCrossing:
+		rospack = rospkg.RosPack()
+		pub.publish()
+		waitTime = 10
 
-	lockJarPath = rospack.get_path('section_lock') + '/scripts/lock_zk_node.jar'
+		lockJarPath = rospack.get_path('section_lock') + '/scripts/lock_zk_node.jar'
 
-	# We ask for the section lock
-	env = dict(os.environ)
-	env['JAVA_OPTS'] = 'foo'
-	proc = Popen(['java', '-jar', lockJarPath, 'lock'], env=env,
-	             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-
-
-	# Signal the truck to stop
-	pub.publish("stop")
-	while True:
-	    line = proc.stdout.readline()
-	    print('lock_accepted' in line)
-	    if 'lock_accepted' in line:
-	        break
+		# We ask for the section lock
+		env = dict(os.environ)
+		env['JAVA_OPTS'] = 'foo'
+		proc = Popen(['java', '-jar', lockJarPath, 'lock'], env=env,
+		             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
 
-	# We've been granted the lock!
-	pub.publish("continue")
-	proc.communicate(input='\n')
+		# Signal the truck to stop
+		pub.publish("stop")
+		while True:
+		    line = proc.stdout.readline()
+		    print('lock_accepted' in line)
+		    if 'lock_accepted' in line:
+		        break
+
+
+		# We've been granted the lock!
+		# Tell the truck to continue driving
+		pub.publish("continue")
+		handledCrossing = True
+		# Tell the java zookeeper tool to release the lock
+		proc.communicate(input='\n')
 
 def listener():
 
