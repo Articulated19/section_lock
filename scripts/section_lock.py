@@ -39,7 +39,7 @@ class SectionLock:
             # We ask for the section lock
             env = dict(os.environ)
             env['JAVA_OPTS'] = 'foo'
-            proc = Popen(['java', '-jar', lock_jar_path, 'lock'], env=env,
+            proc = Popen(['java', '-jar', lock_jar_path, '192.168.1.109:2181'], env=env,
                          stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
             # Signal the truck to stop
