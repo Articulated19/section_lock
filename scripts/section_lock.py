@@ -10,58 +10,54 @@ import subprocess
 from subprocess import Popen
 import sys
 
-pub = None
-handledCrossing = False
 
-def callback(data):
-	global pub
-	global handledCrossing
-	if not handledCrossing:
-		rospack = rospkg.RosPack()
-		pub.publish()
-		waitTime = 10
+class SectionLock:
 
-		lockJarPath = rospack.get_path('section_lock') + '/scripts/lock_zk_node.jar'
+    def __init__(self):
+        # In ROS, nodes are uniquely named. If two nodes with the same
+        # node are launched, the previous one is kicked off. The
+        # anonymous=True flag means that rospy will choose a unique
+        # name for our 'listener' node so that multiple listeners can
+        # run simultaneously.
 
-		# We ask for the section lock
-		env = dict(os.environ)
-		env['JAVA_OPTS'] = 'foo'
-		proc = Popen(['java', '-jar', lockJarPath, 'lock'], env=env,
-		             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        rospy.init_node('section_lock', anonymous=True)
 
+        self.pub = rospy.Publisher('section_lock', String, queue_size=10)
 
-		# Signal the truck to stop
-		pub.publish("stop")
-		while True:
-		    line = proc.stdout.readline()
-		    print('lock_accepted' in line)
-		    if 'lock_accepted' in line:
-		        break
+        rospy.Subscriber("section_identifier", String, self.callback)
 
+        self.handled_crossing = False
 
-		# We've been granted the lock!
-		# Tell the truck to continue driving
-		pub.publish("continue")
-		handledCrossing = True
-		# Tell the java zookeeper tool to release the lock
-		proc.communicate(input='\n')
+    def callback(self, data):
 
-def listener():
+        if not self.handled_crossing:
+            self.pub.publish("stop")
 
-    # In ROS, nodes are uniquely named. If two nodes with the same
-    # node are launched, the previous one is kicked off. The
-    # anonymous=True flag means that rospy will choose a unique
-    # name for our 'listener' node so that multiple listeners can
-    # run simultaneously.
-    rospy.init_node('section_lock', anonymous=True)
+            rospack = rospkg.RosPack()
+            lock_jar_path = rospack.get_path('section_lock') + '/scripts/lock_zk_node.jar'
 
-    global pub
-    pub = rospy.Publisher('section_lock', String, queue_size=10)
+            # We ask for the section lock
+            env = dict(os.environ)
+            env['JAVA_OPTS'] = 'foo'
+            proc = Popen(['java', '-jar', lock_jar_path, 'lock'], env=env,
+                         stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
-    rospy.Subscriber("section_identifier", String, callback)
+            # Signal the truck to stop
+            #self.pub.publish("stop")
+            while True:
+                line = proc.stdout.readline()
+                print('lock_accepted' in line)
+                if 'lock_accepted' in line:
+                    break
 
-    # spin() simply keeps python from exiting until this node is stopped
-    rospy.spin()
+            # We've been granted the lock!
+            # Tell the truck to continue driving
+            # self.pub.publish("continue")
+            # self.handled_crossing = True
+            # Tell the java zookeeper tool to release the lock
+            # proc.communicate(input='\n')
+
 
 if __name__ == '__main__':
-    listener()
+    s = SectionLock()
+    rospy.spin()
