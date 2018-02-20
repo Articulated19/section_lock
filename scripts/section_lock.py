@@ -31,7 +31,6 @@ class SectionLock:
     def callback(self, data):
 
         if not self.handled_crossing:
-            self.handled_crossing = True
             self.pub.publish("stop")
 
             rospack = rospkg.RosPack()
@@ -51,12 +50,12 @@ class SectionLock:
                 if 'lock_accepted' in line:
                     break
 
-            time.sleep(10)
+            time.sleep(5)
 
             # We've been granted the lock!
             # Tell the truck to continue driving
             self.pub.publish("continue")
-            self.handled_crossing = False
+            self.handled_crossing = True
             # Tell the java zookeeper tool to release the lock
             proc.communicate(input='\n')
 
