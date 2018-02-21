@@ -22,7 +22,7 @@ class SectionLock:
 
         rospy.init_node('section_lock', anonymous=True)
 
-        self.pub = rospy.Publisher('section_lock', String, queue_size=10)
+        self.pub = rospy.Publisher('section_lock', String, queue_size=0)
 
         rospy.Subscriber("section_identifier", String, self.callback)
 
@@ -31,6 +31,7 @@ class SectionLock:
     def callback(self, data):
 
         if not self.handled_crossing:
+            self.handled_crossing = True
             self.pub.publish("stop")
 
             rospack = rospkg.RosPack()
@@ -53,7 +54,9 @@ class SectionLock:
             # We've been granted the lock!
             # Tell the truck to continue driving
             self.pub.publish("continue")
-            self.handled_crossing = True
+            time.sleep(5)    
+            self.pub.publish("release")
+            self.handled_crossing = False
             # Tell the java zookeeper tool to release the lock
             proc.communicate(input='\n')
 
