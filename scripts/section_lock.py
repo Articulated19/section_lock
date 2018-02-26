@@ -27,11 +27,23 @@ class SectionLock:
         rospy.Subscriber("section_identifier", String, self.callback)
 
         self.handled_crossing = False
+        self.old_data = None
+        self.proc = None
 
     def callback(self, data):
 
-        if not self.handled_crossing:
+        #If you try to acquire a diffent lock than the one you are holding you will release the old
+        #lock
+        if (self.proc is not None) and (data.data != self.old_data):
+            # Tell the java zookeeper tool to release the lock
+            self.proc.communicate(input='\n')
+            # Tell section_identifier that you left the section
+            self.pub.publish("release")
+            self.handled_crossing = False
+
+        if not self.handled_crossing and (data.data != self.old_data):
             self.handled_crossing = True
+            self.old_data = data.data
             self.pub.publish("stop")
 
             rospack = rospkg.RosPack()
@@ -40,25 +52,20 @@ class SectionLock:
             # We ask for the section lock
             env = dict(os.environ)
             env['JAVA_OPTS'] = 'foo'
-            proc = Popen(['java', '-jar', lock_jar_path, 'localhost:2181'], env=env,
-                         stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+            self.proc = Popen(['java', '-jar', lock_jar_path, 'localhost:2181', self.old_data], env=env,
+                              stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
             # Signal the truck to stop
-            #self.pub.publish("stop")
+            # self.pub.publish("stop")
             while True:
-                line = proc.stdout.readline()
-                print('lock_accepted' in line)
+                line = self.proc.stdout.readline()
+                # print('lock_accepted' in line)
+                # print(String(line))
                 if 'lock_accepted' in line:
+                    # We've been granted the lock!
+                    # Tell the truck to continue driving
+                    self.pub.publish("continue")
                     break
-
-            # We've been granted the lock!
-            # Tell the truck to continue driving
-            self.pub.publish("continue")
-            time.sleep(5)    
-            self.pub.publish("release")
-            self.handled_crossing = False
-            # Tell the java zookeeper tool to release the lock
-            proc.communicate(input='\n')
 
 
 if __name__ == '__main__':
