@@ -45,20 +45,24 @@ class SectionLock:
 
             rospack = rospkg.RosPack()
             lock_jar_path = rospack.get_path('section_lock') + '/scripts/lock_zk_node.jar'
+            print "data.intersection: " + data.intersection
 
-            sections_needed = self.calculate_sections_needed(data)
-            print sections_needed
+            if data.intersection == "Left_Curve" or data.intersection == "Right_Curve":
+                sections_needed = '1'
+            else:
+                sections_needed = self.calculate_sections_needed(data)
 
             # We ask for the section lock
             env = dict(os.environ)
             env['JAVA_OPTS'] = 'foo'
+            print "I have sent this :" + str(sections_needed)
             self.proc = Popen(['java', '-jar', lock_jar_path, 'localhost:2181', data.intersection,
-                               '4'], env=env, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+                               data.initial_direction, str(sections_needed)], env=env, stdout=subprocess.PIPE,
+                              stdin=subprocess.PIPE)
 
             # Signal the truck to stop
             # self.pub.publish("stop")
 
-            number_of_messages = 0
             while True:
                 line = self.proc.stdout.readline()
 
@@ -82,8 +86,25 @@ class SectionLock:
 
         if data.initial_direction == "right" and action == "turn_left":
             return '4'  # Book all 4 sections
+        elif data.initial_direction == "right" and action == "forward":
+            return '2'
+
+        if data.initial_direction == "left" and action == "turn_left":
+            return '4'  # Book all 4 sections
+        elif data.initial_direction == "left" and action == "forward":
+            return '2'
+
+        if data.initial_direction == "up" and action == "turn_left":
+            return '4'  # Book all 4 sections
+        elif data.initial_direction == "up" and action == "turn_right":
+            return '4'
+
+        if data.initial_direction == "down" and action == "turn_left":
+            return '4'  # Book all 4 sections
+        elif data.initial_direction == "down" and action == "turn_right":
+            return '4'
         else:
-            return 0
+            return '0'
 
 
 if __name__ == '__main__':
