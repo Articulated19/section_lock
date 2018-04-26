@@ -61,8 +61,13 @@ class SectionLock:
             number_of_messages = 0
             while True:
                 line = self.proc.stdout.readline()
-                # print('lock_accepted' in line)
-                # print(String(line))
+
+                if 'zk_connection_successful' in line:
+                    self.pub.publish("zk_connection_successful")
+
+                if 'zk_connection_failed' in line:
+                    self.pub.publish("zk_connection_failed")
+
                 if 'lock_accepted' in line:
                     # We've been granted the lock!
                     # Tell the truck to continue driving
