@@ -55,8 +55,9 @@ class SectionLock:
             # We ask for the section lock
             env = dict(os.environ)
             env['JAVA_OPTS'] = 'foo'
+            # 192.168.1.117:2181,192.168.1.107:2181,192.168.1.118:2181,
             print "I have sent this :" + str(sections_needed)
-            self.proc = Popen(['java', '-jar', lock_jar_path,'192.168.1.117:2181,192.168.1.107:2181,192.168.1.118:2181',
+            self.proc = Popen(['java', '-jar', lock_jar_path,'localhost:2181',
                                data.intersection, data.initial_direction, str(sections_needed)],
                               env=env, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
@@ -75,6 +76,7 @@ class SectionLock:
                 if 'lock_accepted' in line:
                     # We've been granted the lock!
                     # Tell the truck to continue driving
+                    print "I said you can drive"
                     self.pub.publish("continue")
                     break
 
